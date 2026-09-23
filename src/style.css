@@ -1,0 +1,131 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--background);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.edge {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: var(--edge-width);
+  transition: opacity var(--fade);
+}
+
+.edge.fresh {
+  stroke-dasharray: 1;
+  animation: draw var(--tick) linear backwards;
+}
+
+.node {
+  transition: opacity var(--fade);
+}
+
+.node.fresh {
+  animation: appear 0s var(--tick) backwards;
+}
+
+.silhouette {
+  fill: var(--face);
+}
+
+.pips {
+  fill: var(--pip);
+}
+
+.own {
+  fill: none;
+  stroke: var(--highlight);
+}
+
+.extinct {
+  opacity: var(--extinct);
+}
+
+.sum {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  font-size: 14px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: var(--sum);
+}
+
+.sound {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  margin: 0;
+  padding: 8px;
+  border: 0;
+  background: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity var(--fade);
+}
+
+.sound:focus {
+  outline: none;
+}
+
+.sound.on {
+  opacity: 0;
+}
+
+.sound.on:hover,
+.sound.on:focus-visible {
+  opacity: 1;
+}
+
+.idle .sound.on {
+  opacity: 0;
+}
+
+.idle,
+.idle * {
+  cursor: none !important;
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge.fresh,
+  .node.fresh {
+    animation: none;
+  }
+}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <title>World Tree</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <svg id="stage" role="img" aria-label="A die rolled from its own faces, generation after generation, drawn as a family tree">
+      <g id="camera">
+        <g id="edges"></g>
+        <g id="nodes"></g>
+      </g>
+    </svg>
+    <div id="sum" class="sum"></div>
+    <button id="sound" class="sound" type="button" aria-label="Unmute" hidden>🔇</button>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
