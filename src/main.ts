@@ -1,102 +1,73 @@
 import { CONFIG } from "./config";
-import { SEED, descend, isUniform, survivors, type Generation } from "./dice";
-import { toRoman } from "./roman";
+import { isUniform } from "./dice";
 import { Sound } from "./sound";
-import { Tree } from "./tree";
+import { World, type Rect } from "./world";
 
 const INTERVAL = 1000 / CONFIG.fps;
-const HOLD_FRAMES = Math.round(CONFIG.fps * CONFIG.hold);
+const COUNT = CONFIG.grid.columns * CONFIG.grid.rows;
 
-const svg = document.getElementById("stage") as unknown as SVGSVGElement;
-const camera = document.getElementById("camera") as unknown as SVGGElement;
-const sum = document.getElementById("sum")!;
+const canvas = document.getElementById("stage") as HTMLCanvasElement;
+const context = canvas.getContext("2d")!;
 const toggle = document.getElementById("sound") as HTMLButtonElement;
 
-const tree = new Tree(
-  svg,
-  document.getElementById("edges") as unknown as SVGGElement,
-  document.getElementById("nodes") as unknown as SVGGElement,
-);
-const sound = new Sound();
+const worlds = Array.from({ length: COUNT }, () => new World());
+const sound = new Sound(COUNT);
 
-const { style } = CONFIG;
-Object.entries({
-  "--tick": `${INTERVAL}ms`,
-  "--background": style.background,
-  "--face": style.face,
-  "--pip": style.pip,
-  "--edge": style.edge,
-  "--highlight": style.highlight,
-  "--sum": style.sum,
-  "--edge-width": String(style.edgeWidth),
-  "--extinct": String(style.extinct),
-  "--fade": `${style.fade}ms`,
-}).forEach(([key, value]) => document.documentElement.style.setProperty(key, value));
+document.documentElement.style.setProperty("--background", CONFIG.style.background);
 
-let generations: Generation[] = [];
-let held = 0;
-let offset = 0;
-
-const show = (generation: Generation, animate = true) => {
-  generations.push(generation);
-  tree.add(generation, { animate });
-  tree.prune(survivors(generations));
-  sum.textContent = toRoman(generation.values.reduce((a, b) => a + b, 0));
-};
-
-const advance = (generation: Generation) => {
-  show(generation);
-  sound.play(generation.values, { settled: isUniform(generation) });
-};
-
-const restart = () => {
-  generations = [];
-  held = 0;
-  offset = 0;
-  tree.clear();
-  advance(SEED);
-};
-
-const step = () => {
-  const latest = generations.at(-1)!;
-
-  if (!isUniform(latest)) {
-    advance(descend(latest));
-    return;
-  }
-
-  if (held++ >= HOLD_FRAMES) restart();
-};
+let cells: Rect[] = [];
 
 const resize = () => {
-  tree.resize(innerWidth, innerHeight, SEED.values.length);
-  const history = generations;
-  generations = [];
-  tree.clear();
-  history.forEach((generation) => show(generation, false));
-  offset = tree.focus(innerHeight);
+  const ratio = devicePixelRatio || 1;
+  canvas.width = Math.round(innerWidth * ratio);
+  canvas.height = Math.round(innerHeight * ratio);
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+
+  const portrait = innerHeight > innerWidth;
+  const { gutter } = CONFIG.grid;
+  const columns = portrait ? CONFIG.grid.rows : CONFIG.grid.columns;
+  const rows = portrait ? CONFIG.grid.columns : CONFIG.grid.rows;
+  const width = (innerWidth - gutter * (columns - 1)) / columns;
+  const height = (innerHeight - gutter * (rows - 1)) / rows;
+
+  cells = worlds.map((_, i) => ({
+    x: (i % columns) * (width + gutter),
+    y: Math.floor(i / columns) * (height + gutter),
+    width,
+    height,
+  }));
+};
+
+const step = (now: number) => {
+  worlds.forEach((world, i) => {
+    const generation = world.step(now);
+    if (generation) sound.play(i, generation.values, { settled: isUniform(generation) });
+  });
 };
 
 let last = performance.now();
 let elapsed = 0;
 
 const loop = (now: number) => {
-  const dt = now - last;
+  const dt = Math.min(now - last, 100);
   last = now;
   elapsed += dt;
 
-  if (elapsed > INTERVAL * 4) elapsed = INTERVAL;
   while (elapsed >= INTERVAL) {
-    step();
+    step(now);
     elapsed -= INTERVAL;
   }
 
-  const target = tree.focus(innerHeight);
-  offset =
-    target < offset
-      ? target
-      : offset + (target - offset) * (1 - Math.exp(-dt / CONFIG.camera.smoothing));
-  camera.setAttribute("transform", `translate(0,${-offset})`);
+  context.globalAlpha = 1;
+  context.fillStyle = CONFIG.style.grid;
+  context.fillRect(0, 0, innerWidth, innerHeight);
+  worlds.forEach((world, i) => {
+    const cell = cells[i]!;
+    context.globalAlpha = 1;
+    context.fillStyle = CONFIG.style.background;
+    context.fillRect(cell.x, cell.y, cell.width, cell.height);
+    world.draw(context, cell, now, dt);
+  });
 
   requestAnimationFrame(loop);
 };
@@ -110,8 +81,10 @@ if (CONFIG.sound.enabled) {
     toggle.setAttribute("aria-label", on ? "Mute" : "Unmute");
     toggle.classList.toggle("on", on);
 
-    const latest = generations.at(-1);
-    if (on && latest) sound.play(latest.values, { settled: isUniform(latest) });
+    if (!on) return;
+    worlds.forEach((world, i) =>
+      sound.play(i, world.latest.values, { settled: isUniform(world.latest) }),
+    );
   });
 
   document.addEventListener("visibilitychange", () =>
@@ -135,7 +108,7 @@ addEventListener("dblclick", ({ target }) => {
   else document.documentElement.requestFullscreen();
 });
 
-tree.resize(innerWidth, innerHeight, SEED.values.length);
-restart();
+resize();
 addEventListener("resize", resize);
+worlds.forEach((world) => world.begin(performance.now()));
 requestAnimationFrame(loop);

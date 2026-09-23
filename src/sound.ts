@@ -2,20 +2,20 @@ import { CONFIG } from "./config";
 
 const { sound: SOUND } = CONFIG;
 
+type Voice = { accent: GainNode; partials: GainNode[] };
+
 /**
- * One sine partial per face value. Each partial's level follows the share of faces showing that
- * value, so the tone collapses to a single pitch as the die converges.
+ * One voice per world, each built on its own fundamental. A voice has one sine partial per face
+ * value, and each partial's level follows the share of faces showing that value, so a world's
+ * tone collapses to a single pitch as its die converges.
  */
 export class Sound {
   private context?: AudioContext;
   private master!: GainNode;
-  private accent!: GainNode;
-  private partials: GainNode[] = [];
+  private voices: Voice[] = [];
   private on = false;
 
-  get enabled() {
-    return this.on;
-  }
+  constructor(private count: number) {}
 
   async toggle() {
     this.on = !this.on;
@@ -37,16 +37,17 @@ export class Sound {
     if (this.on) this.context?.resume();
   }
 
-  play(values: number[], { settled = false } = {}) {
-    if (!this.on || !this.context) return;
+  play(voice: number, values: number[], { settled = false } = {}) {
+    const target = this.voices[voice];
+    if (!this.on || !this.context || !target) return;
     const now = this.context.currentTime;
 
-    this.partials.forEach((partial, i) => {
+    target.partials.forEach((partial, i) => {
       const share = values.filter((value) => value === i + 1).length / values.length;
-      partial.gain.setTargetAtTime(share, now, SOUND.glide);
+      partial.gain.setTargetAtTime(share / this.count, now, SOUND.glide);
     });
 
-    const accent = this.accent.gain;
+    const accent = target.accent.gain;
     const current = accent.value;
     accent.cancelScheduledValues(now);
     if (settled) {
@@ -63,18 +64,28 @@ export class Sound {
     this.context = context;
 
     this.master = new GainNode(context, { gain: 0 });
-    this.accent = new GainNode(context, { gain: 1 - SOUND.pulse });
-    this.accent.connect(this.master).connect(context.destination);
+    this.master.connect(context.destination);
 
-    this.partials = SOUND.partials.map((ratio) => {
-      const gain = new GainNode(context, { gain: 0 });
-      const oscillator = new OscillatorNode(context, {
-        type: SOUND.waveform,
-        frequency: SOUND.fundamental * ratio,
+    this.voices = Array.from({ length: this.count }, (_, v) => {
+      const { scale } = SOUND;
+      const fundamental =
+        SOUND.fundamental * scale[v % scale.length]! * 2 ** Math.floor(v / scale.length);
+
+      const accent = new GainNode(context, { gain: 1 - SOUND.pulse });
+      accent.connect(this.master);
+
+      const partials = SOUND.partials.map((ratio) => {
+        const gain = new GainNode(context, { gain: 0 });
+        const oscillator = new OscillatorNode(context, {
+          type: SOUND.waveform,
+          frequency: fundamental * ratio,
+        });
+        oscillator.connect(gain).connect(accent);
+        oscillator.start();
+        return gain;
       });
-      oscillator.connect(gain).connect(this.accent);
-      oscillator.start();
-      return gain;
+
+      return { accent, partials };
     });
 
     return context;
