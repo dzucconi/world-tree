@@ -8,8 +8,8 @@ export const CONFIG = {
 
   /** Worlds are laid out in a grid; columns and rows swap on a portrait screen. */
   grid: {
-    columns: 6,
-    rows: 5,
+    columns: 4,
+    rows: 2,
     /** Space between worlds, in px. */
     gutter: 2,
   },
