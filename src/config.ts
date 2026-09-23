@@ -6,10 +6,18 @@ export const CONFIG = {
   /** Seconds without pointer or keyboard activity before the cursor hides. */
   idle: 3,
 
-  /** Worlds are laid out in a grid; columns and rows swap on a portrait screen. */
+  /**
+   * Worlds are laid out in a grid; columns and rows swap on a portrait screen. Both can be set
+   * in the query string (`?columns=6&rows=3`), where they aren't swapped. Either can be `random`,
+   * and `?random` randomizes both.
+   */
   grid: {
     columns: 4,
     rows: 2,
+    /** Largest value accepted from the query string. Every world adds six oscillators. */
+    max: 8,
+    /** Range, inclusive, that `random` picks from. */
+    random: { columns: [1, 6], rows: [1, 4] } as Record<"columns" | "rows", [number, number]>,
     /** Space between worlds, in px. */
     gutter: 2,
   },

@@ -1,10 +1,11 @@
 import { CONFIG } from "./config";
 import { isUniform } from "./dice";
+import { GRID_SIZE } from "./params";
 import { Sound } from "./sound";
 import { World, type Rect } from "./world";
 
 const INTERVAL = 1000 / CONFIG.fps;
-const COUNT = CONFIG.grid.columns * CONFIG.grid.rows;
+const COUNT = GRID_SIZE.columns * GRID_SIZE.rows;
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const context = canvas.getContext("2d")!;
@@ -23,10 +24,10 @@ const resize = () => {
   canvas.height = Math.round(innerHeight * ratio);
   context.setTransform(ratio, 0, 0, ratio, 0, 0);
 
-  const portrait = innerHeight > innerWidth;
+  const swap = !GRID_SIZE.fixed && innerHeight > innerWidth;
   const { gutter } = CONFIG.grid;
-  const columns = portrait ? CONFIG.grid.rows : CONFIG.grid.columns;
-  const rows = portrait ? CONFIG.grid.columns : CONFIG.grid.rows;
+  const columns = swap ? GRID_SIZE.rows : GRID_SIZE.columns;
+  const rows = swap ? GRID_SIZE.columns : GRID_SIZE.rows;
   const width = (innerWidth - gutter * (columns - 1)) / columns;
   const height = (innerHeight - gutter * (rows - 1)) / rows;
 
